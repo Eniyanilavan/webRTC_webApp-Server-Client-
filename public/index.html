@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css"/> 
+</head>
+<script type="text/javascript" src="EventEmitter.js"></script>
+<script type="text/javascript" src="main.js"></script>
+<body onload="load()">
+    <h1>
+        webRTC
+    </h1>
+    <div class="details">
+        <span class="join">
+            Join or create room
+        </span> 
+        <input type="text" class="room" id="room" placeholder="room number" onkeyup="change()">
+        <input type="button" class="joinButton" id="button" onclick="join()" value="Join">
+    </div>
+    <div class="parent">
+        <div class="mine">
+            <video id="mine"></video>
+        </div>
+        <div class="other">
+            <video id="other"></video>
+        </div>
+    </div>
+</body>
+</html>
