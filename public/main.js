@@ -1,16 +1,28 @@
 var minePlayer
-var otherPlayer
 var roomId
+var parent
 var joinButtom
 var localStream
-var remoteStream
+var remoteStreams = []
 var localDescription
 var roomID
 var isHost = false
-var websocket = new WebSocket('wss://2aa21e6d.ngrok.io')
+var websocket = new WebSocket('wss://77485217.ngrok.io')
+
+let iceServers = {iceServers:[
+    {
+        urls: ["turn:13.250.13.83:3478?transport=udp"],
+        credential: "YzYNCouZM1mhqhmseWk6",
+        username: "YzYNCouZM1mhqhmseWk6"
+    },
+    {
+        urls: ['stun:stun1.l.google.com:19302']
+    }
+]}
 
 var eventEmiter = new EventEmitter()
-var peerConnection
+var peerConnections = {}
+var participantID
 
 eventEmiter.on('roomFull', (payload)=>{
     alert('roomFull')
@@ -25,38 +37,31 @@ eventEmiter.on('roomNotFound', (payload)=>{
 })
 
 eventEmiter.on('createOffer', (payload)=>{
-    if(isHost){
-        createOffer(payload.roomID)
-    }
+    createOffer(payload.roomID, payload.participantID)
 })
 
 eventEmiter.on('offer', (payload)=>{
-    if(!isHost){
-        createAnswer(payload)
-    }
+    createAnswer(payload)
 })
 
 eventEmiter.on('answer', (payload)=>{
-    if(isHost){
-        acceptAnswer(payload)
-    }
+    acceptAnswer(payload)
 })
 
 
 eventEmiter.on('candidate', (payload)=>{
-    if(peerConnection.remoteDescription){
-        console.log('iceCandidate', payload)
-        peerConnection.addIceCandidate(new RTCIceCandidate({
-            candidate: payload.candidate.candidate,
-            sdpMLineIndex: payload.candidate.sdpMLineIndex
-        }))
-    }
+    
+    console.log('iceCandidate', peerConnections, payload, payload.partnerID)
+    peerConnections[payload.partnerID].addIceCandidate(new RTCIceCandidate({
+        candidate: payload.candidate.candidate,
+        sdpMLineIndex: payload.candidate.sdpMLineIndex
+    }))
 })
 
 function onIceCandidate(event){
     if(event.candidate){
         console.log('sending ice canditates')
-        websocket.send(JSON.stringify({'event': 'candidate', payload:{candidate: event.candidate, roomID: roomID}}))
+        websocket.send(JSON.stringify({'event': 'candidate', payload:{candidate: event.candidate, roomID: roomID, partnerID: participantID}}))
     }
     // var candidate = new RTCIceCandidate({
     //     sdpMLineIndex: event.label,
@@ -68,61 +73,75 @@ function newCandidate(){
     console.log('new canditate')
     websocket.send(JSON.stringify({event:'newCandidate', payload:{
         roomID: roomID,
+        participantID: participantID
     }}))
 }
 
 function createAnswer(payload){
-    addLocalStream()
+    console.log('create answer')
+    var peerConnection = new RTCPeerConnection(iceServers)
+    peerConnection.onicecandidate = onIceCandidate
+    addLocalStream(peerConnection)
+    peerConnections[payload.partnerID] = peerConnection
     peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sessDes))
     peerConnection.createAnswer().then(sessDes=>{
-        peerConnection.setLocalDescription(sessDes)
+        peerConnections[payload.partnerID].setLocalDescription(sessDes)
         websocket.send(JSON.stringify({event:'answer', payload:{
             roomID: roomID,
-            sessDes: sessDes
+            sessDes: sessDes,
+            partnerID: participantID,
+            participantID: payload.partnerID
         }}))
     })
 }
 
 function acceptAnswer(payload){
     console.log('accept answer')
-    peerConnection.setRemoteDescription(payload.sessDes)
+    console.log(peerConnections)
+    peerConnections[payload.partnerID].setRemoteDescription(payload.sessDes)
 }
 
-var bool = true
-
-function addLocalStream(){
-    if(bool){
-        peerConnection.ontrack = onAddStream;
-        peerConnection.addTrack(localStream.getTracks()[0], localStream)
-        peerConnection.addTrack(localStream.getTracks()[1], localStream)
-        bool = false
-    }
+function addLocalStream(peerConnection){
+    peerConnection.ontrack = onAddStream;
+    peerConnection.addTrack(localStream.getTracks()[0], localStream)
+    peerConnection.addTrack(localStream.getTracks()[1], localStream)
 }
 
-function createOffer(roomID){
+function createOffer(roomID, partnerID){
     console.log('create offer')
-    addLocalStream()
+    var peerConnection = new RTCPeerConnection(iceServers)
+    peerConnection.onicecandidate = onIceCandidate
+    addLocalStream(peerConnection)
+    peerConnections[partnerID] = peerConnection
     peerConnection.createOffer().then(sessDes=>{
-        localDescription = sessDes
-        peerConnection.setLocalDescription(sessDes)
+        peerConnections[partnerID].setLocalDescription(sessDes)
         websocket.send(JSON.stringify({event:'offer', payload:{
             roomID: roomID,
+            participantID: partnerID,
+            partnerID: participantID,
             sessDes: sessDes
         }}))
     })
 }
 
+var mediaStream
+var video
+
 function onAddStream(event){
     console.log('add stream')
-    otherPlayer.srcObject = event.streams[0];
-    otherPlayer.play();
-    remoteStream = event.streams;
+    if(event.track.kind === "audio"){
+        video = document.createElement("video")
+        video.className = "player"
+        parent.appendChild(video)
+        video.srcObject = event.streams[0];
+        video.play();
+        remoteStreams.push(event.streams[0]);
+    }
 }
 
 eventEmiter.on('success', (payload)=>{
     console.log(payload.iceServers)
-    peerConnection = new RTCPeerConnection(payload.iceServers)
-    peerConnection.onicecandidate = onIceCandidate
+    participantID = payload.participantID
     navigator.mediaDevices.getUserMedia({audio: true, video: true}).then(function (stream) {
         localStream = stream;
         minePlayer.srcObject = stream;
@@ -133,7 +152,6 @@ eventEmiter.on('success', (payload)=>{
     });
     if(payload.isCaller){
         isHost = true
-        // createOffer(payload.roomID)
     }
     else{
         newCandidate()
@@ -154,7 +172,7 @@ function load() {
     joinButtom = document.getElementById('joinButton')
     roomId = document.getElementById('room')
     minePlayer = document.getElementById('mine')
-    otherPlayer = document.getElementById('other')
+    parent = document.getElementById('parent')
 }
 
 function join(){

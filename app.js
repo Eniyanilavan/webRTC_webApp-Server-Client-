@@ -5,7 +5,7 @@ let WS = require('ws').Server
 let app = express()
 let server = http.createServer(app)
 
-let MAX_PARTICIPANTS = 3
+let MAX_PARTICIPANTS = 10
 
 let iceServers = {iceServers:[
     {
@@ -43,12 +43,13 @@ function subscribe(socket) {
                 socket.send(JSON.stringify({ event: 'roomFull', payload: {} }))
             }
             else {
-                socket.send(JSON.stringify({ event: 'success', payload: {iceServers: iceServers} }))
+                socket.send(JSON.stringify({ event: 'success', payload: {iceServers: iceServers, participantID: rooms[data.callID].length} }))
                 rooms[data.callID].push(socket)
             }
         }
         else {
-            socket.send(JSON.stringify({ event: 'success', payload: {iceServers: iceServers, isCaller: true, roomID: data.callID} }))
+            rooms[data.callID] = []
+            socket.send(JSON.stringify({ event: 'success', payload: {iceServers: iceServers, isCaller: true, roomID: data.callID, participantID: rooms[data.callID].length} }))
             rooms[data.callID] = [socket]
         }
     })
@@ -56,10 +57,8 @@ function subscribe(socket) {
     socket.on('offer', (data)=>{
         console.log("offer arrived")
         if(data.roomID && rooms[data.roomID]){
-            let sockets = rooms[data.roomID]
-            sockets.map(sock=>{
-                sock.send(JSON.stringify({event: 'offer', payload: data}))
-            })
+            let sock = rooms[data.roomID][data.participantID]
+            sock.send(JSON.stringify({event: 'offer', payload: data}))
         }
         else{
             socket.send(JSON.stringify({ event: 'roomNotFound', payload: {} })) 
@@ -69,10 +68,8 @@ function subscribe(socket) {
     socket.on('answer', (data)=>{
         console.log("answer arrived")
         if(data.roomID && rooms[data.roomID]){
-            let sockets = rooms[data.roomID]
-            sockets.map(sock=>{
-                sock.send(JSON.stringify({event: 'answer', payload: data}))
-            })
+            let sock = rooms[data.roomID][data.participantID]
+            sock.send(JSON.stringify({event: 'answer', payload: data}))
         }
         else{
             socket.send(JSON.stringify({ event: 'roomNotFound', payload: {} })) 
@@ -84,7 +81,9 @@ function subscribe(socket) {
         if(data.roomID && rooms[data.roomID]){
             let sockets = rooms[data.roomID]
             sockets.map(sock=>{
-                sock.send(JSON.stringify({event: 'createOffer', payload: data}))
+                if(sock !== socket){
+                    sock.send(JSON.stringify({event: 'createOffer', payload: data}))
+                }
             })
         }
         else{
@@ -96,7 +95,9 @@ function subscribe(socket) {
         if(data.roomID && rooms[data.roomID]){
             let sockets = rooms[data.roomID]
             sockets.map(sock=>{
-                sock.send(JSON.stringify({event: 'candidate', payload: data}))
+                if(sock !== socket){
+                    sock.send(JSON.stringify({event: 'candidate', payload: data}))
+                }
             })
         }
         else{

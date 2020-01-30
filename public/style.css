@@ -1,7 +1,13 @@
 .parent{
-    display: flex; 
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-evenly; 
     width: 100%; 
-    height: calc(100vh - 38.4px - (21.4333px * 2) - 50.5px); 
+    margin-top: 30px;
+    background-color: yellow;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 .details{
@@ -9,9 +15,20 @@
 }
 
 .mine{
-    width: 50%;
-    height: 100%;
+    width: 100%;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background-color: red;
+}
+
+.player{
+    width: 350px;
+    height: 200px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    background-color: violet;
 }
 
 .joinButton{
@@ -32,12 +49,6 @@
     border-bottom: 2px solid gray;
     font-size: 18px;
     margin-left: 20px;
-}
-
-.other{
-    width: 50%;
-    height: 100%;
-    background-color: yellow;
 }
 
 .join{
