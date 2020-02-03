@@ -9,7 +9,7 @@ let MAX_PARTICIPANTS = 10
 
 let iceServers = {iceServers:[
     {
-        urls: ["turn:13.250.13.83:3478?transport=udp"],
+        urls: ["turn:13.250.13.83:3478?transport=tcp"],
         credential: "YzYNCouZM1mhqhmseWk6",
         username: "YzYNCouZM1mhqhmseWk6"
     },
